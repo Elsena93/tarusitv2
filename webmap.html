@@ -6,13 +6,40 @@
     <style>
         #map { height: 100vh; width: 100vw; }
         body { margin: 0; padding: 0; }
+        #locate-btn {
+            position: fixed; /* Keeps button on screen */
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000; /* Ensures it's above the map */
+            background: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            cursor: pointer;
+            border: 2px solid #007BFF;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            transition: 0.3s;
+        }
+        
+        #locate-btn:hover {
+            background: #007BFF;
+            color: white;
+        }
+        
     </style>
 </head>
 <body>
+    <button id="locate-btn">📍</button>
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
+        // Add button
+        
         // Initialize the map
         var map = L.map('map');
 
@@ -628,16 +655,37 @@
         // Road Network Layer
         const roadLayer = L.geoJSON(roadGeoJSON, {
             style: function(feature) {
-                return {
-                    color: '#ff8c00',
-                    weight: feature.properties.type === 'highway' ? 3 : 1
-                };
+                // Dynamic styling based on road type
+            let color;
+            switch (feature.properties.NAMOBJ) {
+                case 'Jalan Tol': color = 'red'; break;  // Red for highways
+                case 'Jalan Arteri Primer': color = 'orange'; break;  // Orange for main roads
+                case 'Jalan Kolektor Primer': color = 'yellow'; break;  // Blue for secondary roads
+                default: color = '#666'; // Gray for others
+        }
+
+            return {
+                color: color,
+                weight: feature.properties.NAMOBJ === 'Jalan Tol' ? 4 : 2, // Highways thicker
+                weight: feature.properties.NAMOBJ === 'Jalan Arteri Primer' ? 4 : 2, // Highways thicker
+                // dashArray: feature.properties.NAMOBJ === 'Jalan Arteri Primer' ? '5, 5' : null // Dashed lines for secondary roads
+            };
             },
             onEachFeature: function(feature, layer) {
-                let popupContent = '<b>Road</b>';
-                if (feature.properties.name) popupContent += `<br>Name: ${feature.properties.name}`;
-                if (feature.properties.type) popupContent += `<br>Type: ${feature.properties.type}`;
+                let popupContent = '<b>Informasi</b>';
+                if (feature.properties.NAMOBJ) popupContent += `<br>Kelas: ${feature.properties.NAMOBJ}`;
+                if (feature.properties.REMARK) popupContent += `<br>Nama: ${feature.properties.REMARK}`;
                 layer.bindPopup(popupContent);
+
+                // Make the road temporarily thicker when hovered
+                layer.on('mouseover', function () {
+                layer.setStyle({ weight: 10, opacity: 0.7 });
+    });
+
+    // 🔹 Restore original thickness when the mouse leaves
+    layer.on('mouseout', function () {
+        layer.setStyle({ weight: feature.properties.type === 'highway' ? 4 : 2, opacity: 1 });
+    });
             }
         }).addTo(map);
 
@@ -657,6 +705,41 @@
         };
 
         L.control.layers(baseLayers, overlayLayers).addTo(map);
+
+        var userMarker, userCircle; // Store user's location marker and circle
+
+        // Function to locate user
+        function locateUser() {
+            map.locate({ setView: true, maxZoom: 16 });
+        }
+
+        // When location is found
+        function onLocationFound(e) {
+            var radius = e.accuracy / 2;
+
+            // Remove previous marker & circle
+            if (userMarker) map.removeLayer(userMarker);
+            if (userCircle) map.removeLayer(userCircle);
+
+            // Add new marker at user's location
+            userMarker = L.marker(e.latlng).addTo(map)
+                .bindPopup("You are within " + radius + " meters from this point").openPopup();
+
+            // Add accuracy circle
+            userCircle = L.circle(e.latlng, radius, { color: 'blue', fillOpacity: 0.3 }).addTo(map);
+        }
+
+        // When location is not found
+        function onLocationError(e) {
+            alert("Location access denied or unavailable.");
+        }
+
+        // Event listeners
+        map.on('locationfound', onLocationFound);
+        map.on('locationerror', onLocationError);
+
+        // Attach locate function to button
+        document.getElementById("locate-btn").addEventListener("click", locateUser);
 
     </script>
 </body>

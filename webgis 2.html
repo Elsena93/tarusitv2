@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile WebGIS</title>
+    <title>Improved Mobile WebGIS</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
     <style>
         #map {
@@ -11,26 +11,37 @@
             height: 100vh;
         }
         
-        .leaflet-popup-content button {
-            padding: 5px;
-            margin-top: 5px;
+        .coord-display {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: white;
+            padding: 8px;
+            border-radius: 5px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
+    <div class="coord-display" id="coordDisplay">
+        <span id="coordinates">Click map to show coordinates</span>
+        <button onclick="copyCoords()" style="margin-left: 8px;">Copy</button>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // Initialize map with default view
+        // Initialize map
         var map = L.map('map').setView([51.505, -0.09], 13);
+        var clickMarker;
 
-        // Base layers
-        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // Administrative Layer (Sample GeoJSON)
+        // Administrative Layer
         var adminLayer = L.geoJSON({
             "type": "FeatureCollection",
             "features": [{
@@ -56,14 +67,19 @@
             }
         }).addTo(map);
 
-        // Road Layer (Sample GeoJSON)
+        // Set map bounds with 20% padding
+        var adminBounds = adminLayer.getBounds();
+        map.setMaxBounds(adminBounds.pad(0.2));
+
+        // Road Layer with Length Calculation
         var roadLayer = L.geoJSON({
             "type": "FeatureCollection",
             "features": [{
                 "type": "Feature",
                 "properties": {
                     "type": "main",
-                    "name": "Main Street"
+                    "name": "Main Street",
+                    "condition": "Good"
                 },
                 "geometry": {
                     "type": "LineString",
@@ -92,13 +108,21 @@
             },
             onEachFeature: function(feature, layer) {
                 if (feature.properties) {
+                    // Calculate road length
+                    const length = layer.getLatLngs().reduce((total, point, index, points) => {
+                        return index > 0 ? 
+                            total + points[index-1].distanceTo(points[index]) 
+                            : total;
+                    }, 0);
+                    
                     layer.on('click', function(e) {
                         L.popup()
                             .setLatLng(e.latlng)
                             .setContent(`
-                                Road Info:<br>
-                                Name: ${feature.properties.name || 'N/A'}<br>
-                                Type: ${feature.properties.type || 'Unknown'}
+                                <b>${feature.properties.name}</b><br>
+                                Type: ${feature.properties.type}<br>
+                                Condition: ${feature.properties.condition}<br>
+                                Length: ${(length/1000).toFixed(2)} km
                             `)
                             .openOn(map);
                     });
@@ -106,45 +130,34 @@
             }
         }).addTo(map);
 
-        // Set bounds with padding
-        map.fitBounds(adminLayer.getBounds().pad(0.2));
-
-        // Location button
-        var locateControl = L.control({
-            position: 'topleft'
-        });
-        locateControl.onAdd = function(map) {
-            var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-            div.innerHTML = '<a href="#" role="button" title="Locate me">📍</a>';
-            div.onclick = function() {
-                navigator.geolocation.getCurrentPosition(function(pos) {
+        // Location Control
+        const locateControl = L.control({position: 'topleft'});
+        locateControl.onAdd = () => {
+            const div = L.DomUtil.create('div', 'leaflet-control-locate');
+            div.innerHTML = '<button style="padding:6px;">📍</button>';
+            div.onclick = () => {
+                navigator.geolocation.getCurrentPosition(pos => {
                     map.flyTo([pos.coords.latitude, pos.coords.longitude], 16);
-                    L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map)
-                        .bindPopup("You are here!").openPopup();
                 });
-                return false;
             };
             return div;
         };
         locateControl.addTo(map);
 
-        // Click handling
-        var clickMarker;
-        map.on('click', function(e) {
+        // Click Handling with Coordinates Display
+        map.on('click', e => {
             if(clickMarker) map.removeLayer(clickMarker);
+            clickMarker = L.marker(e.latlng).addTo(map);
             
-            clickMarker = L.marker(e.latlng, {
-                draggable: true
-            }).addTo(map)
-            .bindPopup(`
-                Coordinates: <br>
-                ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}<br>
-                <button onclick="copyCoords('${e.latlng}')">Copy</button>
-            `).openPopup();
+            const coordText = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+            document.getElementById('coordinates').textContent = coordText;
         });
 
-        function copyCoords(text) {
+        // Copy Functionality
+        function copyCoords() {
+            const text = document.getElementById('coordinates').textContent;
             navigator.clipboard.writeText(text)
+                .then(() => alert('Coordinates copied!'))
                 .catch(err => alert('Copy failed: ' + err));
         }
     </script>

@@ -2,10 +2,21 @@
 <html>
 <head>
     <title>Embedded GeoJSON Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive WebGIS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <style>
         #map { height: 100vh; width: 100vw; }
-        body { margin: 0; padding: 0; }
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            height: 100vh; 
+            width: 100vw; 
+            overflow: hidden; /* Prevent scrolling issues */
+        }
         #locate-btn {
             position: fixed; /* Keeps button on screen */
             bottom: 20px;
@@ -55,11 +66,16 @@
         #copy-btn:hover {
             background: #0056b3;
         }
-        
+        .leaflet-control-zoom {
+            transform: scale(1.5); /* Make zoom buttons bigger */
+        }
+        .leaflet-control-layers {
+            transform: scale(1.5); /* Make zoom buttons bigger */
+        }
     </style>
 </head>
 <body>
-    <button id="locate-btn">📍</button>
+    <button id="locate-btn">Klik Lokasi</button>
     <div id="map"></div>
     
     <!-- Coordinate Display -->

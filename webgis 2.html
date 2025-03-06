@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile First WebGIS</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+    <style>
+        /* Mobile-first styles */
+        #map { 
+            width: 100%;
+            height: 100vh;
+            position: fixed;
+        }
+        
+        /* Desktop adjustments */
+        @media (min-width: 768px) {
+            .leaflet-control { margin-right: 10px; }
+        }
+        
+        .coordinates-popup .leaflet-popup-content {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <!-- Load Leaflet and plugins -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://rawgit.com/leaflet-extras/leaflet-providers/master/leaflet-providers.js"></script>
+    <script src="https://cdn.rawgit.com/shramov/leaflet-plugins/master/layer/tile/Google.js"></script>
+
+    <script>
+        // Initialize map with mobile-friendly view
+        var map = L.map('map', {
+            zoomControl: false
+        }).setView([0, 0], 12); // Temporary initial view
+
+        // Add base layers
+        var osm = L.tileLayer.provider('OpenStreetMap.Mapnik');
+        var googleHybrid = new L.Google('HYBRID');
+
+        // Add layer control
+        L.control.zoom({ position: 'topleft' }).addTo(map);
+        var baseLayers = {
+            "OSM Standard": osm,
+            "Google Hybrid": googleHybrid
+        };
+
+        // Step 1: Add Administrative Layer (GeoJSON placeholder)
+        // ------------------------------------------------------
+        var adminLayer = L.geoJSON({
+            "type": "FeatureCollection",
+            "features": [] // Add GeoJSON features here
+        }, {
+            style: {
+                color: "#ff0000",
+                weight: 2,
+                dashArray: '5,5',
+                fillOpacity: 0
+            }
+        }).addTo(map);
+
+        // Step 2: Add Road Network Layer (GeoJSON placeholder)
+        // ----------------------------------------------------
+        var roadLayer = L.geoJSON({
+            "type": "FeatureCollection",
+            "features": [] // Add GeoJSON road features here
+        }, {
+            style: function(feature) {
+                switch(feature.properties.type) {
+                    case 'toll': return {color: '#ff0000', weight: 4};
+                    case 'main': return {color: '#ffa500', weight: 3};
+                    case 'collector': return {color: '#ffff00', weight: 2};
+                    default: return {color: '#ffffff', weight: 1};
+                }
+            },
+            onEachFeature: function(feature, layer) {
+                layer.on('click', function(e) {
+                    L.popup()
+                        .setContent(`Road Info:<br>
+                            Name: ${feature.properties.name || 'N/A'}<br>
+                            Type: ${feature.properties.type}<br>
+                            Status: ${feature.properties.status || 'Unknown'}`)
+                        .setLatLng(e.latlng)
+                        .openOn(map);
+                });
+            }
+        }).addTo(map);
+
+        // Step 3: Set map bounds to administrative layer +20% padding
+        // ----------------------------------------------------------
+        // When real data is added:
+        // map.fitBounds(adminLayer.getBounds().pad(0.2));
+
+        // Step 4: Add location button
+        // --------------------------
+        L.control.locate({
+            position: 'topleft',
+            drawCircle: true,
+            showPopup: true,
+            locateOptions: {maxZoom: 16}
+        }).addTo(map);
+
+        // Step 5: Click handling for coordinates
+        // --------------------------------------
+        var clickMarker;
+        map.on('click', function(e) {
+            if(clickMarker) map.removeLayer(clickMarker);
+            
+            clickMarker = L.marker(e.latlng, {
+                draggable: true,
+                title: "Selected Location"
+            }).addTo(map)
+              .bindPopup(`
+                  <div class="coordinates-popup">
+                      ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}
+                      <button onclick="navigator.clipboard.writeText('${e.latlng}')">
+                          Copy
+                      </button>
+                  </div>
+              `).openPopup();
+        });
+
+        // Add layer control last
+        L.control.layers(baseLayers).addTo(map);
+    </script>
+</body>
+</html>

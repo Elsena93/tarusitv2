@@ -29,12 +29,45 @@
             background: #007BFF;
             color: white;
         }
+        /* Coordinate Display Panel */
+        #coordinate-display {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            z-index: 1000; /* Ensure it appears above the map */
+        }
+
+        #copy-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        #copy-btn:hover {
+            background: #0056b3;
+        }
         
     </style>
 </head>
 <body>
     <button id="locate-btn">📍</button>
     <div id="map"></div>
+    
+    <!-- Coordinate Display -->
+    <div id="coordinate-display">
+        Click on the map to get coordinates<br>
+        <b>Lat:</b> <span id="lat">-</span>, <b>Lng:</b> <span id="lng">-</span>
+        <button id="copy-btn" onclick="copyCoordinates()">Copy</button>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
@@ -682,7 +715,7 @@
                 layer.setStyle({ weight: 10, opacity: 0.7 });
     });
 
-    // 🔹 Restore original thickness when the mouse leaves
+    // Restore original thickness when the mouse leaves
     layer.on('mouseout', function () {
         layer.setStyle({ weight: feature.properties.type === 'highway' ? 4 : 2, opacity: 1 });
     });
@@ -740,6 +773,34 @@
 
         // Attach locate function to button
         document.getElementById("locate-btn").addEventListener("click", locateUser);
+        
+
+
+        // Function to update coordinate display
+        function updateCoordinates(lat, lng) {
+            document.getElementById('lat').textContent = lat.toFixed(6);
+            document.getElementById('lng').textContent = lng.toFixed(6);
+        }
+
+        // Add click event listener to map
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+            updateCoordinates(lat, lng);
+        });
+
+        // Function to copy coordinates
+        function copyCoordinates() {
+            var lat = document.getElementById('lat').textContent;
+            var lng = document.getElementById('lng').textContent;
+            var textToCopy = `Latitude: ${lat}, Longitude: ${lng}`;
+
+            navigator.clipboard.writeText(textToCopy).then(function() {
+                alert("Coordinates copied: " + textToCopy);
+            }).catch(function(error) {
+                console.error("Failed to copy:", error);
+            });
+        }
 
     </script>
 </body>

@@ -3,163 +3,159 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Improved Mobile WebGIS</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
+    <title>WebGIS Application</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #map {
-            width: 100%;
-            height: 100vh;
-        }
-        
-        .coord-display {
-            position: fixed;
+        body, html { margin: 0; padding: 0; height: 100%; }
+        #map { width: 100%; height: 100vh; position: relative; }
+        /* Bottom Controls (Coordinates + Locate Me) */
+        #bottom-controls {
+            position: absolute;
             bottom: 10px;
-            left: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.3);
+            font-size: 14px;
+            align-items: center;
+            z-index: 1000; /* Keeps it above the map */
+        }
+
+        /* Individual Elements */
+        #coordinate-display { white-space: nowrap; }
+        #locate-me {
             background: white;
-            padding: 8px;
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            cursor: pointer;
             border-radius: 5px;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
-            z-index: 1000;
         }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    <div class="coord-display" id="coordDisplay">
-        <span id="coordinates">Click map to show coordinates</span>
-        <button onclick="copyCoords()" style="margin-left: 8px;">Copy</button>
-    </div>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script>
-        // Initialize map
-        var map = L.map('map').setView([51.505, -0.09], 13);
-        var clickMarker;
+<div id="map"></div>
+<!-- Coordinate Display & Locate Button Wrapper -->
+<div id="bottom-controls">
+    <div id="coordinate-display">Lat: -, Lng: - <button onclick="copyCoords()">Copy</button></div>
+    <button id="locate-me">📍 Locate Me</button>
+</div>
 
-        // Base layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-        // Administrative Layer
-        var adminLayer = L.geoJSON({
-            "type": "FeatureCollection",
-            "features": [{
+<script>
+    // 1️⃣ Initialize Map
+    var map = L.map('map', { zoomControl: false }).setView([0, 0], 2);
+
+    // 2️⃣ Basemap Layers
+    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    });
+
+    var googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '&copy; Google'
+    });
+
+    osm.addTo(map); // Default basemap
+
+    var baseMaps = {
+        "OSM Standard": osm,
+        "Google Hybrid": googleHybrid
+    };
+
+    // 3️⃣ Overlay Layers (Mock Data)
+    var adminBoundary = {
+        "type": "FeatureCollection",
+        "features": [
+            {
                 "type": "Feature",
-                "properties": {},
+                "properties": { "name": "Admin Area" },
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [[
-                        [51.49, -0.12],
-                        [51.51, -0.12],
-                        [51.51, -0.06],
-                        [51.49, -0.06],
-                        [51.49, -0.12]
-                    ]]
-                }
-            }]
-        }, {
-            style: {
-                color: "#ff0000",
-                weight: 2,
-                dashArray: '5,5',
-                fillOpacity: 0
-            }
-        }).addTo(map);
-
-        // Set map bounds with 20% padding
-        var adminBounds = adminLayer.getBounds();
-        map.setMaxBounds(adminBounds.pad(0.2));
-
-        // Road Layer with Length Calculation
-        var roadLayer = L.geoJSON({
-            "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "properties": {
-                    "type": "main",
-                    "name": "Main Street",
-                    "condition": "Good"
-                },
-                "geometry": {
-                    "type": "LineString",
-                    "coordinates": [
-                        [51.50, -0.10],
-                        [51.50, -0.08]
-                    ]
-                }
-            }]
-        }, {
-            style: function(feature) {
-                return {
-                    color: {
-                        toll: '#ff0000',
-                        main: '#ffa500',
-                        collector: '#ffff00',
-                        neighborhood: '#ffffff'
-                    }[feature.properties.type] || '#cccccc',
-                    weight: {
-                        toll: 4,
-                        main: 3,
-                        collector: 2,
-                        neighborhood: 1
-                    }[feature.properties.type] || 1
-                }
-            },
-            onEachFeature: function(feature, layer) {
-                if (feature.properties) {
-                    // Calculate road length
-                    const length = layer.getLatLngs().reduce((total, point, index, points) => {
-                        return index > 0 ? 
-                            total + points[index-1].distanceTo(points[index]) 
-                            : total;
-                    }, 0);
-                    
-                    layer.on('click', function(e) {
-                        L.popup()
-                            .setLatLng(e.latlng)
-                            .setContent(`
-                                <b>${feature.properties.name}</b><br>
-                                Type: ${feature.properties.type}<br>
-                                Condition: ${feature.properties.condition}<br>
-                                Length: ${(length/1000).toFixed(2)} km
-                            `)
-                            .openOn(map);
-                    });
+                    "coordinates": [[[100, -1], [101, -1], [101, 0], [100, 0], [100, -1]]]
                 }
             }
-        }).addTo(map);
+        ]
+    };
 
-        // Location Control
-        const locateControl = L.control({position: 'topleft'});
-        locateControl.onAdd = () => {
-            const div = L.DomUtil.create('div', 'leaflet-control-locate');
-            div.innerHTML = '<button style="padding:6px;">📍</button>';
-            div.onclick = () => {
-                navigator.geolocation.getCurrentPosition(pos => {
-                    map.flyTo([pos.coords.latitude, pos.coords.longitude], 16);
-                });
-            };
-            return div;
-        };
-        locateControl.addTo(map);
+    var roadNetwork = {
+        "type": "FeatureCollection",
+        "features": [
+            { "type": "Feature", "properties": { "road_type": "Toll", "name": "Highway 1", "condition": "Good" },
+                "geometry": { "type": "LineString", "coordinates": [[100, -0.5], [101, -0.5]] } },
+            { "type": "Feature", "properties": { "road_type": "Main Road", "name": "Main Street", "condition": "Moderate" },
+                "geometry": { "type": "LineString", "coordinates": [[100, -0.3], [101, -0.3]] } }
+        ]
+    };
 
-        // Click Handling with Coordinates Display
-        map.on('click', e => {
-            if(clickMarker) map.removeLayer(clickMarker);
-            clickMarker = L.marker(e.latlng).addTo(map);
-            
-            const coordText = `${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-            document.getElementById('coordinates').textContent = coordText;
-        });
+    // 4️⃣ Add Admin Boundary
+    var adminLayer = L.geoJSON(adminBoundary, {
+        style: { color: "red", weight: 2, opacity: 1, fillOpacity: 0, dashArray: "5,5" }
+    }).addTo(map);
 
-        // Copy Functionality
-        function copyCoords() {
-            const text = document.getElementById('coordinates').textContent;
-            navigator.clipboard.writeText(text)
-                .then(() => alert('Coordinates copied!'))
-                .catch(err => alert('Copy failed: ' + err));
+    // Center & Bound View
+    var bounds = adminLayer.getBounds();
+    map.fitBounds(bounds.pad(0.2));
+
+    // 5️⃣ Road Styling & Click Info
+    function styleRoad(feature) {
+        var colors = { "Toll": "purple", "Main Road": "blue", "Collector": "orange", "Neighbourhood Road": "gray" };
+        return { color: colors[feature.properties.road_type] || "black", weight: 8, opacity: 0.6 };
+    }
+
+    var roadLayer = L.geoJSON(roadNetwork, {
+        style: styleRoad,
+        onEachFeature: function (feature, layer) {
+            layer.on('click', function () {
+                L.popup()
+                    .setLatLng(layer.getBounds().getCenter())
+                    .setContent("<b>" + feature.properties.name + "</b><br>Condition: " + feature.properties.condition)
+                    .openOn(map);
+            });
         }
-    </script>
+    }).addTo(map);
+
+    var overlayMaps = {
+        "Administrative Layer": adminLayer,
+        "Road Network": roadLayer
+    };
+
+    // 6️⃣ Add Layer Control to Map
+    L.control.layers(baseMaps, overlayMaps, { collapsed: false }).addTo(map);
+
+    // 7️⃣ Locate User
+    document.getElementById('locate-me').onclick = function () {
+        map.locate({ setView: true, maxZoom: 16, enableHighAccuracy: true });
+    };
+
+    var userMarker;
+    map.on('locationfound', function (e) {
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.marker(e.latlng).addTo(map);
+        L.circle(e.latlng, { radius: e.accuracy, color: 'blue', fillOpacity: 0.2 }).addTo(map);
+    });
+
+    // 8️⃣ Tap to Pin & Show Coordinates
+    var tapMarker;
+    map.on('click', function (e) {
+        if (tapMarker) map.removeLayer(tapMarker);
+        tapMarker = L.marker(e.latlng).addTo(map);
+        document.getElementById('coordinate-display').innerHTML =
+            `Lat: ${e.latlng.lat.toFixed(6)}, Lng: ${e.latlng.lng.toFixed(6)}
+            <button onclick="copyCoords()">Copy</button>`;
+    });
+
+    // 9️⃣ Copy to Clipboard
+    function copyCoords() {
+        navigator.clipboard.writeText(document.getElementById('coordinate-display').innerText.split("Copy")[0].trim());
+        alert("Coordinates copied!");
+    }
+
+</script>
+
 </body>
 </html>

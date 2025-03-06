@@ -3,56 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobile First WebGIS</title>
+    <title>Mobile WebGIS</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
     <style>
-        /* Mobile-first styles */
-        #map { 
+        #map {
             width: 100%;
             height: 100vh;
-            position: fixed;
         }
         
-        /* Desktop adjustments */
-        @media (min-width: 768px) {
-            .leaflet-control { margin-right: 10px; }
-        }
-        
-        .coordinates-popup .leaflet-popup-content {
-            text-align: center;
+        .leaflet-popup-content button {
+            padding: 5px;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
     <div id="map"></div>
 
-    <!-- Load Leaflet and plugins -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://rawgit.com/leaflet-extras/leaflet-providers/master/leaflet-providers.js"></script>
-    <script src="https://cdn.rawgit.com/shramov/leaflet-plugins/master/layer/tile/Google.js"></script>
-
     <script>
-        // Initialize map with mobile-friendly view
-        var map = L.map('map', {
-            zoomControl: false
-        }).setView([0, 0], 12); // Temporary initial view
+        // Initialize map with default view
+        var map = L.map('map').setView([51.505, -0.09], 13);
 
-        // Add base layers
-        var osm = L.tileLayer.provider('OpenStreetMap.Mapnik');
-        var googleHybrid = new L.Google('HYBRID');
+        // Base layers
+        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
-        // Add layer control
-        L.control.zoom({ position: 'topleft' }).addTo(map);
-        var baseLayers = {
-            "OSM Standard": osm,
-            "Google Hybrid": googleHybrid
-        };
-
-        // Step 1: Add Administrative Layer (GeoJSON placeholder)
-        // ------------------------------------------------------
+        // Administrative Layer (Sample GeoJSON)
         var adminLayer = L.geoJSON({
             "type": "FeatureCollection",
-            "features": [] // Add GeoJSON features here
+            "features": [{
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [51.49, -0.12],
+                        [51.51, -0.12],
+                        [51.51, -0.06],
+                        [51.49, -0.06],
+                        [51.49, -0.12]
+                    ]]
+                }
+            }]
         }, {
             style: {
                 color: "#ff0000",
@@ -62,69 +56,97 @@
             }
         }).addTo(map);
 
-        // Step 2: Add Road Network Layer (GeoJSON placeholder)
-        // ----------------------------------------------------
+        // Road Layer (Sample GeoJSON)
         var roadLayer = L.geoJSON({
             "type": "FeatureCollection",
-            "features": [] // Add GeoJSON road features here
+            "features": [{
+                "type": "Feature",
+                "properties": {
+                    "type": "main",
+                    "name": "Main Street"
+                },
+                "geometry": {
+                    "type": "LineString",
+                    "coordinates": [
+                        [51.50, -0.10],
+                        [51.50, -0.08]
+                    ]
+                }
+            }]
         }, {
             style: function(feature) {
-                switch(feature.properties.type) {
-                    case 'toll': return {color: '#ff0000', weight: 4};
-                    case 'main': return {color: '#ffa500', weight: 3};
-                    case 'collector': return {color: '#ffff00', weight: 2};
-                    default: return {color: '#ffffff', weight: 1};
+                return {
+                    color: {
+                        toll: '#ff0000',
+                        main: '#ffa500',
+                        collector: '#ffff00',
+                        neighborhood: '#ffffff'
+                    }[feature.properties.type] || '#cccccc',
+                    weight: {
+                        toll: 4,
+                        main: 3,
+                        collector: 2,
+                        neighborhood: 1
+                    }[feature.properties.type] || 1
                 }
             },
             onEachFeature: function(feature, layer) {
-                layer.on('click', function(e) {
-                    L.popup()
-                        .setContent(`Road Info:<br>
-                            Name: ${feature.properties.name || 'N/A'}<br>
-                            Type: ${feature.properties.type}<br>
-                            Status: ${feature.properties.status || 'Unknown'}`)
-                        .setLatLng(e.latlng)
-                        .openOn(map);
-                });
+                if (feature.properties) {
+                    layer.on('click', function(e) {
+                        L.popup()
+                            .setLatLng(e.latlng)
+                            .setContent(`
+                                Road Info:<br>
+                                Name: ${feature.properties.name || 'N/A'}<br>
+                                Type: ${feature.properties.type || 'Unknown'}
+                            `)
+                            .openOn(map);
+                    });
+                }
             }
         }).addTo(map);
 
-        // Step 3: Set map bounds to administrative layer +20% padding
-        // ----------------------------------------------------------
-        // When real data is added:
-        // map.fitBounds(adminLayer.getBounds().pad(0.2));
+        // Set bounds with padding
+        map.fitBounds(adminLayer.getBounds().pad(0.2));
 
-        // Step 4: Add location button
-        // --------------------------
-        L.control.locate({
-            position: 'topleft',
-            drawCircle: true,
-            showPopup: true,
-            locateOptions: {maxZoom: 16}
-        }).addTo(map);
+        // Location button
+        var locateControl = L.control({
+            position: 'topleft'
+        });
+        locateControl.onAdd = function(map) {
+            var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+            div.innerHTML = '<a href="#" role="button" title="Locate me">📍</a>';
+            div.onclick = function() {
+                navigator.geolocation.getCurrentPosition(function(pos) {
+                    map.flyTo([pos.coords.latitude, pos.coords.longitude], 16);
+                    L.marker([pos.coords.latitude, pos.coords.longitude]).addTo(map)
+                        .bindPopup("You are here!").openPopup();
+                });
+                return false;
+            };
+            return div;
+        };
+        locateControl.addTo(map);
 
-        // Step 5: Click handling for coordinates
-        // --------------------------------------
+        // Click handling
         var clickMarker;
         map.on('click', function(e) {
             if(clickMarker) map.removeLayer(clickMarker);
             
             clickMarker = L.marker(e.latlng, {
-                draggable: true,
-                title: "Selected Location"
+                draggable: true
             }).addTo(map)
-              .bindPopup(`
-                  <div class="coordinates-popup">
-                      ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}
-                      <button onclick="navigator.clipboard.writeText('${e.latlng}')">
-                          Copy
-                      </button>
-                  </div>
-              `).openPopup();
+            .bindPopup(`
+                Coordinates: <br>
+                ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}<br>
+                <button onclick="copyCoords('${e.latlng}')">Copy</button>
+            `).openPopup();
         });
 
-        // Add layer control last
-        L.control.layers(baseLayers).addTo(map);
+        function copyCoords(text) {
+            navigator.clipboard.writeText(text)
+                .catch(err => alert('Copy failed: ' + err));
+        }
     </script>
 </body>
 </html>

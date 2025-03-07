@@ -68,6 +68,8 @@
     };
 
     // 3️⃣ Overlay Layers (Mock Data)
+
+    // ---- 📌 Administrative Layer (Topmost) ----
     var adminBoundary = {
         "type": "FeatureCollection",
         "features": [
@@ -82,6 +84,34 @@
         ]
     };
 
+    // ---- 📌 PoI Layer (Icons) ----
+    var poiLayer = L.geoJSON({
+        "type": "FeatureCollection",
+        "features": [
+            { "type": "Feature", "properties": { "name": "City School", "type": "school" },
+                "geometry": { "type": "Point", "coordinates": [100.5, -0.5] } },
+            { "type": "Feature", "properties": { "name": "Tasty Restaurant", "type": "restaurant" },
+                "geometry": { "type": "Point", "coordinates": [100.7, -0.6] } },
+            { "type": "Feature", "properties": { "name": "Grand Mosque", "type": "mosque" },
+                "geometry": { "type": "Point", "coordinates": [100.6, -0.4] } }
+        ]
+    }, {
+        pointToLayer: function (feature, latlng) {
+            var icons = {
+                "school": "https://cdn-icons-png.flaticon.com/32/2885/2885433.png",
+                "restaurant": "https://cdn-icons-png.flaticon.com/32/2921/2921823.png",
+                "mosque": "https://cdn-icons-png.flaticon.com/32/1998/1998636.png"
+            };
+            return L.marker(latlng, {
+                icon: L.icon({
+                    iconUrl: icons[feature.properties.type] || "https://cdn-icons-png.flaticon.com/32/535/535239.png",
+                    iconSize: [24, 24]
+                })
+            }).bindPopup(`<b>${feature.properties.name}</b>`);
+        }
+    }).addTo(map);
+
+    // ---- 📌 Road Network Layer ----
     var roadNetwork = {
         "type": "FeatureCollection",
         "features": [
@@ -91,6 +121,52 @@
                 "geometry": { "type": "LineString", "coordinates": [[100, -0.3], [101, -0.3]] } }
         ]
     };
+
+    // ---- 📌 Waterways Layer (Below Roads) ----
+    var waterwaysLayer = L.geoJSON({
+        "type": "FeatureCollection",
+        "features": [
+            { "type": "Feature", "properties": { "type": "River" },
+                "geometry": { "type": "LineString", "coordinates": [[100.2, -0.2], [101.2, -0.2]] } }
+        ]
+    }, {
+        style: function (feature) {
+            var colors = { "River": "blue", "Canal": "cyan", "Irrigation": "lightblue" };
+            return { color: colors[feature.properties.type] || "gray", weight: 3 };
+        },
+        onEachFeature: function (feature, layer) {
+            layer.bindPopup(`<b>Type:</b> ${feature.properties.type}`);
+        }
+    });
+
+    // ---- 📌 Landuse Layer (Fixed Popups) ----
+    var landuseLayer = L.geoJSON({
+        "type": "FeatureCollection",
+        "features": [
+            { "type": "Feature", "properties": { "use": "Residential" },
+                "geometry": { "type": "Polygon", "coordinates": [[[100.1, -0.6], [100.3, -0.6], [100.3, -0.4], [100.1, -0.4], [100.1, -0.6]]] } },
+            { "type": "Feature", "properties": { "use": "Commercial" },
+                "geometry": { "type": "Polygon", "coordinates": [[[100.4, -0.6], [100.6, -0.6], [100.6, -0.4], [100.4, -0.4], [100.4, -0.6]]] } }
+        ]
+    }, {
+        style: function (feature) {
+            var colors = { "Residential": "green", "Commercial": "yellow", "Industrial": "red", "Farm": "brown" };
+            return { color: colors[feature.properties.use] || "gray", weight: 1, fillOpacity: 0.5 };
+        },
+        onEachFeature: function (feature, layer) {
+            // Debugging: Check if properties exist
+            console.log("Feature properties:", feature.properties);
+            
+            if (feature.properties && feature.properties.use) {
+                layer.bindPopup(`<b>Land Use:</b> ${feature.properties.use}`);
+            } else {
+                layer.bindPopup("Unknown Land Use");
+            }
+        }
+    });
+
+    // Test if it's correctly added
+    console.log("Landuse Layer Added:", landuseLayer);
 
     // 4️⃣ Add Admin Boundary
     var adminLayer = L.geoJSON(adminBoundary, {
@@ -121,7 +197,10 @@
 
     var overlayMaps = {
         "Administrative Layer": adminLayer,
-        "Road Network": roadLayer
+        "Points of Interest (PoI)": poiLayer,
+        "Road Network": roadLayer,
+        "Waterways": waterwaysLayer,
+        "Land Use": landuseLayer
     };
 
     // 6️⃣ Add Layer Control to Map

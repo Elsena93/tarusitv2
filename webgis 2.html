@@ -165,9 +165,6 @@
         }
     });
 
-    // Test if it's correctly added
-    console.log("Landuse Layer Added:", landuseLayer);
-
     // 4️⃣ Add Admin Boundary
     var adminLayer = L.geoJSON(adminBoundary, {
         style: { color: "red", weight: 2, opacity: 1, fillOpacity: 0, dashArray: "5,5" }
@@ -176,6 +173,9 @@
     // Center & Bound View
     var bounds = adminLayer.getBounds();
     map.fitBounds(bounds.pad(0.2));
+
+    // ---- 📌 Restrict User Pan to Admin Bounds + Padding ----
+    map.setMaxBounds(bounds.pad(0.2)); // Prevent panning outside bounds
 
     // 5️⃣ Road Styling & Click Info
     function styleRoad(feature) {

@@ -87,6 +87,7 @@
             var bounds = adminLayer.getBounds();
             if (bounds.isValid()) {
                 map.fitBounds(bounds.pad(0.2)); // ✅ Only call fitBounds if bounds are valid
+                locateUser(); //Calling locate user function
                 map.setMaxBounds(bounds.pad(0.2)); // 🔥 Prevents panning outside the boundary
             } else {
                 console.warn("Invalid bounds: Administrative layer may be empty.");
@@ -238,25 +239,33 @@
         alert("Coordinates copied!");
     }
 
-    // ---- 📌 Default Fallback Location ----
-    var fallbackCoords = [-7.706054, 114.005217]; 
-    var fallbackZoom = 20; // Adjust zoom level as needed
+    // ---- LOCATE USER LOCATION ON FIRST LOAD ----
+    function locateUser() {
 
-    // ---- 📌 Try to Locate User ----
-    map.locate({ setView: true, maxZoom: 20, timeout: 5000 }); // 5s timeout
+        // ---- 📌 Default Fallback Location ----
+        var fallbackCoords = [-7.706054, 114.005217]; 
+        var fallbackZoom = 20; // Adjust zoom level as needed
 
-    // ---- 📌 Handle Location Found ----
-    map.on("locationfound", function(e) {
-        L.marker(e.latlng).addTo(map) // Add marker on user's location
-            .bindPopup("You are here").openPopup();
-    });
+        // ---- 📌 Try to Locate User ----
+        map.locate({ setView: true, maxZoom: 20, timeout: 5000 }); // 5s timeout
 
-    // ---- 📌 Handle Location Error (Use Default) ----
-    map.on("locationerror", function() {
-        map.setView(fallbackCoords, fallbackZoom); // Move to default location
-    });
+        // ---- 📌 Handle Location Found ----
+        map.on("locationfound", function(e) {
+            L.marker(e.latlng).addTo(map) // Add marker on user's location
+                .bindPopup("You are here").openPopup();
+            // console.log("User Location Found!");
+        });
 
-    // ---- 📌 Fetch road netwirj Data from External File ----
+        // ---- 📌 Handle Location Error (Use Default) ----
+        map.on("locationerror", function() {
+            map.setView(fallbackCoords, fallbackZoom); // Move to default location
+            // console.log("User Location NOT Found!");
+        });
+    }
+
+    // ---- FETCH NECESSARY DATA DATA ----
+
+    // ---- Fetch road network Data from External File ----
     fetch("./src/Road Network EPSG4326.geojson") // 🔥 Replace with actual file path
         .then(response => response.json())
         .then(data => {
@@ -265,7 +274,7 @@
         })
         .catch(error => console.error("Error loading Land Use data:", error));
 
-    // ---- 📌 Fetch waterways Data from External File ----
+    // ---- Fetch waterways Data from External File ----
     fetch("./src/Waterways EPSG4326.geojson") // 🔥 Replace with actual file path
         .then(response => response.json())
         .then(data => {
@@ -274,7 +283,7 @@
         })
         .catch(error => console.error("Error loading Land Use data:", error));
 
-    // ---- 📌 Fetch Land Use Data from External File ----
+    // ---- Fetch Land Use Data from External File ----
     fetch("./src/landuse4326.geojson") // 🔥 Replace with actual file path
         .then(response => response.json())
         .then(data => {

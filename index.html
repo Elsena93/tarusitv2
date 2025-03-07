@@ -95,13 +95,6 @@
         })
         .catch(error => console.error("Error loading Land Use data:", error));
 
-    // // Center & Bound View
-    // var bounds = adminLayer.getBounds();
-    // map.fitBounds(bounds.pad(0.2));
-
-    // // Restrict User Pan to Admin Bounds + Padding ----
-    // map.setMaxBounds(bounds.pad(0.2)); // Prevent panning outside bounds
-
     // ---- 📌 PoI Layer (Icons) ----
     var poiLayer = L.geoJSON({
         "type": "FeatureCollection",
@@ -143,14 +136,6 @@
         onEachFeature: function (feature, layer) {
             layer.bindPopup(`<b>Nama:</b> ${feature.properties.REMARK}`);
         }
-        // onEachFeature: function (feature, layer) {
-        //     layer.on('click', function () {
-        //         L.popup()
-        //             .setLatLng(layer.getBounds().getCenter())
-        //             .setContent("<b>" + feature.properties.name + "</b><br>Condition: " + feature.properties.condition)
-        //             .openOn(map);
-        //     });
-        // }
     }).addTo(map);
 
     // ---- 📌 Waterways Layer (Below Roads) ----
@@ -190,7 +175,7 @@
         },
             onEachFeature: function (feature, layer) {
             // Debugging: Check if properties exist
-            console.log("Feature properties:", feature.properties);
+            // console.log("Feature properties:", feature.properties);
             
             if (feature.properties && feature.properties.NAMOBJ) {
                 layer.bindPopup(`<b>Land Use:</b> ${feature.properties.NAMOBJ}`);
@@ -202,7 +187,7 @@
 
     var overlayMaps = {
         "Batas Administrasi": adminLayer,
-        "Points of Interest (PoI)": poiLayer,
+        // "Points of Interest (PoI)": poiLayer,
         "Jaringan Jalan": roadLayer,
         "Jaringan SDA": waterwaysLayer,
         "Pola Ruang": landuseLayer

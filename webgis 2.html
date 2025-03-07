@@ -186,13 +186,16 @@
     var roadLayer = L.geoJSON(roadNetwork, {
         style: styleRoad,
         onEachFeature: function (feature, layer) {
-            layer.on('click', function () {
-                L.popup()
-                    .setLatLng(layer.getBounds().getCenter())
-                    .setContent("<b>" + feature.properties.name + "</b><br>Condition: " + feature.properties.condition)
-                    .openOn(map);
-            });
+            layer.bindPopup(`<b>Condition:</b> ${feature.properties.condition}`);
         }
+        // onEachFeature: function (feature, layer) {
+        //     layer.on('click', function () {
+        //         L.popup()
+        //             .setLatLng(layer.getBounds().getCenter())
+        //             .setContent("<b>" + feature.properties.name + "</b><br>Condition: " + feature.properties.condition)
+        //             .openOn(map);
+        //     });
+        // }
     }).addTo(map);
 
     var overlayMaps = {
@@ -224,7 +227,7 @@
         if (tapMarker) map.removeLayer(tapMarker);
         tapMarker = L.marker(e.latlng).addTo(map);
         document.getElementById('coordinate-display').innerHTML =
-            `Lat: ${e.latlng.lat.toFixed(6)}, Lng: ${e.latlng.lng.toFixed(6)}
+            `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}
             <button onclick="copyCoords()">Copy</button>`;
     });
 

@@ -42,7 +42,7 @@
 <!-- Coordinate Display & Locate Button Wrapper -->
 <div id="bottom-controls">
     <div id="coordinate-display">Lat: -, Lng: - <button onclick="copyCoords()">Copy</button></div>
-    <button id="locate-me">📍 Locate Me</button>
+    <button id="locate-me">📍 Lokasi Saya</button>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -84,6 +84,17 @@
         ]
     };
 
+    var adminLayer = L.geoJSON(adminBoundary, {
+        style: { color: "red", weight: 2, opacity: 1, fillOpacity: 0, dashArray: "5,5" }
+    }).addTo(map);
+
+    // Center & Bound View
+    var bounds = adminLayer.getBounds();
+    map.fitBounds(bounds.pad(0.2));
+
+    // Restrict User Pan to Admin Bounds + Padding ----
+    map.setMaxBounds(bounds.pad(0.2)); // Prevent panning outside bounds
+
     // ---- 📌 PoI Layer (Icons) ----
     var poiLayer = L.geoJSON({
         "type": "FeatureCollection",
@@ -121,6 +132,27 @@
                 "geometry": { "type": "LineString", "coordinates": [[100, -0.3], [101, -0.3]] } }
         ]
     };
+
+    // 5️⃣ Road Styling & Click Info
+    function styleRoad(feature) {
+        var colors = { "Toll": "purple", "Main Road": "blue", "Collector": "orange", "Neighbourhood Road": "gray" };
+        return { color: colors[feature.properties.road_type] || "black", weight: 8, opacity: 0.6 };
+    }
+
+    var roadLayer = L.geoJSON(roadNetwork, {
+        style: styleRoad,
+        onEachFeature: function (feature, layer) {
+            layer.bindPopup(`<b>Condition:</b> ${feature.properties.condition}`);
+        }
+        // onEachFeature: function (feature, layer) {
+        //     layer.on('click', function () {
+        //         L.popup()
+        //             .setLatLng(layer.getBounds().getCenter())
+        //             .setContent("<b>" + feature.properties.name + "</b><br>Condition: " + feature.properties.condition)
+        //             .openOn(map);
+        //     });
+        // }
+    }).addTo(map);
 
     // ---- 📌 Waterways Layer (Below Roads) ----
     var waterwaysLayer = L.geoJSON({
@@ -165,45 +197,12 @@
         }
     });
 
-    // 4️⃣ Add Admin Boundary
-    var adminLayer = L.geoJSON(adminBoundary, {
-        style: { color: "red", weight: 2, opacity: 1, fillOpacity: 0, dashArray: "5,5" }
-    }).addTo(map);
-
-    // Center & Bound View
-    var bounds = adminLayer.getBounds();
-    map.fitBounds(bounds.pad(0.2));
-
-    // ---- 📌 Restrict User Pan to Admin Bounds + Padding ----
-    map.setMaxBounds(bounds.pad(0.2)); // Prevent panning outside bounds
-
-    // 5️⃣ Road Styling & Click Info
-    function styleRoad(feature) {
-        var colors = { "Toll": "purple", "Main Road": "blue", "Collector": "orange", "Neighbourhood Road": "gray" };
-        return { color: colors[feature.properties.road_type] || "black", weight: 8, opacity: 0.6 };
-    }
-
-    var roadLayer = L.geoJSON(roadNetwork, {
-        style: styleRoad,
-        onEachFeature: function (feature, layer) {
-            layer.bindPopup(`<b>Condition:</b> ${feature.properties.condition}`);
-        }
-        // onEachFeature: function (feature, layer) {
-        //     layer.on('click', function () {
-        //         L.popup()
-        //             .setLatLng(layer.getBounds().getCenter())
-        //             .setContent("<b>" + feature.properties.name + "</b><br>Condition: " + feature.properties.condition)
-        //             .openOn(map);
-        //     });
-        // }
-    }).addTo(map);
-
     var overlayMaps = {
-        "Administrative Layer": adminLayer,
+        "Batas Administrasi": adminLayer,
         "Points of Interest (PoI)": poiLayer,
-        "Road Network": roadLayer,
-        "Waterways": waterwaysLayer,
-        "Land Use": landuseLayer
+        "Jaringan Jalan": roadLayer,
+        "Jaringan SDA": waterwaysLayer,
+        "Pola Ruang": landuseLayer
     };
 
     // 6️⃣ Add Layer Control to Map
@@ -236,6 +235,24 @@
         navigator.clipboard.writeText(document.getElementById('coordinate-display').innerText.split("Copy")[0].trim());
         alert("Coordinates copied!");
     }
+
+    // ---- 📌 Default Fallback Location ----
+    var fallbackCoords = [-7.706054, 114.005217]; 
+    var fallbackZoom = 20; // Adjust zoom level as needed
+
+    // ---- 📌 Try to Locate User ----
+    map.locate({ setView: true, maxZoom: 20, timeout: 5000 }); // 5s timeout
+
+    // ---- 📌 Handle Location Found ----
+    map.on("locationfound", function(e) {
+        L.marker(e.latlng).addTo(map) // Add marker on user's location
+            .bindPopup("You are here").openPopup();
+    });
+
+    // ---- 📌 Handle Location Error (Use Default) ----
+    map.on("locationerror", function() {
+        map.setView(fallbackCoords, fallbackZoom); // Move to default location
+    });
 
 </script>
 
